@@ -47,10 +47,11 @@ static inline void releaseThreadStackTraceLock() {
     rvmUnlockMutex(&threadStackTraceLock);
 }
 
-static Method* findMethod(Env* env, Class* clazz, const char* name, const char* desc) {
+static Method* findMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
     Method* method = rvmGetMethods(env, clazz);
     if (rvmExceptionCheck(env)) return NULL;
     for (; method != NULL; method = method->next) {
+        if (method->hash != hash) continue;
         if (!strcmp(method->name, name) && !strcmp(method->desc, desc)) {
             return method;
         }
@@ -58,15 +59,15 @@ static Method* findMethod(Env* env, Class* clazz, const char* name, const char* 
     return NULL;
 }
 
-static Method* getMethod(Env* env, Class* clazz, const char* name, const char* desc) {
+static Method* getMethodWithHash(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
     if (!strcmp("<init>", name) || !strcmp("<clinit>", name)) {
         // Constructors and static initializers are not inherited so we shouldn't check with the superclasses.
-        return findMethod(env, clazz, name, desc);
+        return findMethod(env, clazz, hash, name, desc);
     }
 
     Class* c = clazz;
     for (c = clazz; c != NULL; c = c->superclass) {
-        Method* method = findMethod(env, c, name, desc);
+        Method* method = findMethod(env, c, hash, name, desc);
         if (rvmExceptionCheck(env)) return NULL;
         if (method) return method;
     }
@@ -79,7 +80,7 @@ static Method* getMethod(Env* env, Class* clazz, const char* name, const char* d
         Interface* interface = rvmGetInterfaces(env, c);
         if (rvmExceptionCheck(env)) return NULL;
         for (; interface != NULL; interface = interface->next) {
-            Method* method = getMethod(env, interface->interface, name, desc);
+            Method* method = getMethodWithHash(env, interface->interface, hash, name, desc);
             if (rvmExceptionCheck(env)) return NULL;
             if (method) return method;
         }
@@ -90,10 +91,15 @@ static Method* getMethod(Env* env, Class* clazz, const char* name, const char* d
          * Class is an interface so check with java.lang.Object.
          * TODO: Should we really do this? Does the JNI GetMethodID() function do this?
          */
-        return getMethod(env, java_lang_Object, name, desc);
+        return getMethodWithHash(env, java_lang_Object, hash, name, desc);
     }
 
     return NULL;
+}
+
+static Method* getMethod(Env* env, Class* clazz, const char* name, const char* desc) {
+    jint hash = rvmMethodHash(name, desc);
+    return getMethodWithHash(env, clazz, hash, name, desc);
 }
 
 jboolean rvmInitMethods(Env* env) {

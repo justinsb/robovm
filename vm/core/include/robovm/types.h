@@ -78,6 +78,7 @@ struct Method {
   Class* clazz;
   const char* name;
   const char* desc;
+  jint hash;
   jint access;
   jint size;
   void* attributes;

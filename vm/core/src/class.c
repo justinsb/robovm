@@ -750,12 +750,36 @@ jboolean rvmAddInterface(Env* env, Class* clazz, Class* interf) {
     return TRUE;
 }
 
+jint rvmMethodHash(const char * name, const char * desc) {
+    jint h = 2166136261;
+    while (*name) {
+        h ^= *name;
+        h *= 16777619;
+        name++;
+    }
+
+    h *= 16777619;
+
+    while (*desc) {
+        h ^= *desc;
+        h *= 16777619;
+        desc++;
+    }
+
+    return h;
+    //jint h = 0x1ce79e5c;
+    //MurmurHash3_x86_32(name, strlen(name) + 1, h, &h);
+    //MurmurHash3_x86_32(desc, strlen(desc) + 1, h, &h);
+    //return h;
+}
+
 Method* rvmAddMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, void* synchronizedImpl, void* attributes) {
     Method* method = rvmAllocateMemory(env, IS_NATIVE(access) ? sizeof(NativeMethod) : sizeof(Method));
     if (!method) return NULL;
     method->clazz = clazz;
     method->name = name;
     method->desc = desc;
+    method->hash = rvmMethodHash(name, desc);
     method->access = access;
     method->size = size;
     method->impl = impl;
@@ -778,6 +802,7 @@ ProxyMethod* addProxyMethod(Env* env, Class* clazz, Method* proxiedMethod, jint 
     method->method.clazz = clazz;
     method->method.name = proxiedMethod->name;
     method->method.desc = proxiedMethod->desc;
+    method->method.hash = rvmMethodHash(method->method.name, method->method.desc);
     method->method.access = access | METHOD_TYPE_PROXY;
     method->method.impl = impl;
     method->method.synchronizedImpl = NULL;
@@ -801,6 +826,7 @@ BridgeMethod* rvmAddBridgeMethod(Env* env, Class* clazz, const char* name, const
     method->method.clazz = clazz;
     method->method.name = name;
     method->method.desc = desc;
+    method->method.hash = rvmMethodHash(method->method.name, method->method.desc);
     method->method.access = access | METHOD_TYPE_BRIDGE;
     method->method.size = size;
     method->method.impl = impl;
@@ -826,6 +852,7 @@ CallbackMethod* rvmAddCallbackMethod(Env* env, Class* clazz, const char* name, c
     method->method.clazz = clazz;
     method->method.name = name;
     method->method.desc = desc;
+    method->method.hash = rvmMethodHash(method->method.name, method->method.desc);
     method->method.access = access | METHOD_TYPE_CALLBACK;
     method->method.size = size;
     method->method.impl = impl;

@@ -120,6 +120,8 @@ extern Class* array_D;
 extern jboolean rvmInitClasses(Env* env);
 extern jboolean rvmInitPrimitiveWrapperClasses(Env* env);
 
+extern jint rvmMethodHash(const char * name, const char * desc);
+
 extern Class* rvmAllocateClass(Env* env, const char* className, Class* superclass, ClassLoader* classLoader, jint flags, 
 		jint classDataSize, jint instanceDataSize, jint instanceDataOffset, unsigned short classRefCount, unsigned short instanceRefCount, 
         void* attributes, void* initializer);

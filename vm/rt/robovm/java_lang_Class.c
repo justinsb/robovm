@@ -179,12 +179,17 @@ ObjectArray* Java_java_lang_Class_getDeclaredClasses0(Env* env, Class* clazz, jb
 ObjectArray* Java_java_lang_Class_getDeclaredConstructors0(Env* env, Class* clazz, jboolean publicOnly) {
     if (CLASS_IS_PRIMITIVE(clazz) || CLASS_IS_ARRAY(clazz)) return NULL;
 
-    Method* methods = rvmGetMethods(env, clazz);
+    MethodTable* methods = rvmGetMethods(env, clazz);
     if (rvmExceptionCheck(env)) return NULL;
 
-    Method* method;
     jint length = 0;
-    for (method = methods; method != NULL; method = method->next) {
+    int j;
+    for (j = 0; j < methods->size; j++) {
+        MethodTableSlot * slot = &methods->slot[j];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (METHOD_IS_CONSTRUCTOR(method)) {
             if (!publicOnly || METHOD_IS_PUBLIC(method)) {
                 length++;
@@ -194,7 +199,12 @@ ObjectArray* Java_java_lang_Class_getDeclaredConstructors0(Env* env, Class* claz
 
     ObjectArray* result = NULL;
     jint i = 0;
-    for (method = methods; method != NULL; method = method->next) {
+    for (j = 0; j < methods->size; j++) {
+        MethodTableSlot * slot = &methods->slot[j];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (METHOD_IS_CONSTRUCTOR(method)) {
             if (!publicOnly || METHOD_IS_PUBLIC(method)) {
                 Object* c = createConstructorObject(env, method);
@@ -214,12 +224,17 @@ ObjectArray* Java_java_lang_Class_getDeclaredConstructors0(Env* env, Class* claz
 ObjectArray* Java_java_lang_Class_getDeclaredMethods0(Env* env, Class* clazz, jboolean publicOnly) {
     if (CLASS_IS_PRIMITIVE(clazz) || CLASS_IS_ARRAY(clazz)) return NULL;
 
-    Method* methods = rvmGetMethods(env, clazz);
+    MethodTable* methods = rvmGetMethods(env, clazz);
     if (rvmExceptionCheck(env)) return NULL;
 
-    Method* method;
     jint length = 0;
-    for (method = methods; method != NULL; method = method->next) {
+    int j;
+    for (j = 0; j < methods->size; j++) {
+        MethodTableSlot * slot = &methods->slot[j];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (!METHOD_IS_CONSTRUCTOR(method) && !METHOD_IS_CLASS_INITIALIZER(method)) {
             if (!publicOnly || METHOD_IS_PUBLIC(method)) {
                 length++;
@@ -229,7 +244,12 @@ ObjectArray* Java_java_lang_Class_getDeclaredMethods0(Env* env, Class* clazz, jb
 
     ObjectArray* result = NULL;
     jint i = 0;
-    for (method = methods; method != NULL; method = method->next) {
+    for (j = 0; j < methods->size; j++) {
+        MethodTableSlot * slot = &methods->slot[j];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (!METHOD_IS_CONSTRUCTOR(method) && !METHOD_IS_CLASS_INITIALIZER(method)) {
             if (!publicOnly || METHOD_IS_PUBLIC(method)) {
                 Object* c = createMethodObject(env, method);

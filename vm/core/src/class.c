@@ -94,8 +94,10 @@ Class* array_J;
 Class* array_F;
 Class* array_D;
 
+static MethodTable CONSTANT_EMPTY_METHOD_TABLE = {0};
+
 static Field FIELDS_NOT_LOADED = {0};
-static Method METHODS_NOT_LOADED = {0};
+static MethodTable METHODS_NOT_LOADED = {0};
 static Interface INTERFACES_NOT_LOADED = {0};
 static Boolean* java_lang_Boolean_TRUE = NULL;
 static Boolean* java_lang_Boolean_FALSE = NULL;
@@ -161,7 +163,7 @@ static Class* createPrimitiveClass(Env* env, const char* desc) {
     if (!clazz) return NULL;
     clazz->_interfaces = NULL;
     clazz->_fields = NULL;
-    clazz->_methods = NULL;
+    clazz->_methodTable = &CONSTANT_EMPTY_METHOD_TABLE;
     return clazz;
 }
 
@@ -189,8 +191,8 @@ static Class* createArrayClass(Env* env, Class* componentType) {
         sizeof(Class), sizeof(Object), sizeof(Object), 0, 0, NULL, NULL);
     if (!clazz) return NULL;
     clazz->componentType = componentType;
-    // Initialize methods to NULL to prevent rvmGetMethods() from trying to load the methods if called with this array class
-    clazz->_methods = NULL;
+    // Initialize methods to CONSTANT_EMPTY_METHOD_TABLE to prevent rvmGetMethods() from trying to load the methods if called with this array class
+    clazz->_methodTable = &CONSTANT_EMPTY_METHOD_TABLE;
     if (!rvmAddInterface(env, clazz, java_lang_Cloneable)) return NULL;
     if (!rvmAddInterface(env, clazz, java_io_Serializable)) return NULL;
     if (!rvmRegisterClass(env, clazz)) return NULL;
@@ -722,7 +724,7 @@ Class* rvmAllocateClass(Env* env, const char* className, Class* superclass, Clas
     clazz->instanceRefCount = instanceRefCount;
     clazz->_interfaces = &INTERFACES_NOT_LOADED;
     clazz->_fields = &FIELDS_NOT_LOADED;
-    clazz->_methods = &METHODS_NOT_LOADED;
+    clazz->_methodTable = &METHODS_NOT_LOADED;
     clazz->attributes = attributes;
     clazz->initializer = initializer;
 
@@ -750,60 +752,163 @@ jboolean rvmAddInterface(Env* env, Class* clazz, Class* interf) {
     return TRUE;
 }
 
+MethodTable * rvmBuildMethodTable(Env * env, jint n) {
+    size_t size = sizeof(MethodTable) + (sizeof(MethodTableSlot[1]) * n);
+    MethodTable * methodTable = rvmAllocateMemory(env, size);
+    if (methodTable == NULL) return NULL;
+
+    methodTable->size = n;
+    memset(methodTable->slot, 0, sizeof(MethodTableSlot) * n);
+
+    return methodTable;
+}
+
+static MethodTableSlot * findEmptySlot(MethodTable * methodTable, int hash) {
+    int size = methodTable->size;
+
+    if (size == 0) {
+        FATAL("MethodTable size was 0 (!)");
+        return NULL;
+    }
+
+    if (hash < 0) hash = -hash;
+    int i = hash % size;
+
+    int n = 0;
+
+    while (n < size) {
+        if (methodTable->slot[i].method.name == NULL) {
+            // Empty slot
+            return &methodTable->slot[i];
+        }
+
+        i++;
+        if (i >= size) {
+            i = 0;
+        }
+        n++;
+    }
+
+    return NULL;
+}
+
+
+static MethodTable * growMethodTable(Env * env, MethodTable * oldTable, int newSize) {
+    TRACEF("Growing MethodTable from %d to %d", oldTable->size, newSize);
+
+    int i;
+    MethodTable * newTable = rvmBuildMethodTable(env, newSize);
+    if (newTable == NULL) return NULL;
+
+    for (i = 0; i < oldTable->size; i++) {
+        MethodTableSlot * oldSlot = &oldTable->slot[i];
+        if (oldSlot->method.name == NULL) continue;
+
+        MethodTableSlot * newSlot = findEmptySlot(newTable, oldSlot->method.hash);
+        assert(newSlot != NULL);
+        if (newSlot == NULL) return NULL;
+
+        memcpy(newSlot, oldSlot, sizeof(MethodTableSlot));
+        // ??memset(oldSlot, 0, sizeof(Method));
+    }
+
+    return newTable;
+}
+
+static MethodTableSlot * addSlot(Env* env, Class* clazz, int hash) {
+    MethodTable * methodTable = clazz->_methodTable;
+    if (methodTable == &METHODS_NOT_LOADED) {
+        methodTable = rvmBuildMethodTable(env, 64);
+        if (methodTable == NULL) return NULL;
+
+        clazz->_methodTable = methodTable;
+    }
+
+    MethodTableSlot * slot = findEmptySlot(methodTable, hash);
+
+    if (!slot) {
+        MethodTable * oldMethodTable = methodTable;
+        int newSize = oldMethodTable->size * 2;
+
+        if (newSize == 0) {
+            FATAL("MethodTable size was 0 (!)");
+            return NULL;
+        }
+
+        MethodTable * newMethodTable = growMethodTable(env, oldMethodTable, newSize);
+        if (newMethodTable == NULL) return NULL;
+
+        clazz->_methodTable = methodTable = newMethodTable;
+
+        slot = findEmptySlot(methodTable, hash);
+    }
+
+    return slot;
+}
+
 Method* rvmAddMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, void* synchronizedImpl, void* attributes) {
-    Method* method = rvmAllocateMemory(env, IS_NATIVE(access) ? sizeof(NativeMethod) : sizeof(Method));
-    if (!method) return NULL;
+    jint hash = rvmMethodHash(name, desc);;
+
+    MethodTableSlot * methodTableSlot = addSlot(env, clazz, hash);
+    if (!methodTableSlot) return NULL;
+
+    Method * method = &methodTableSlot->method;
+    // Method* method = rvmAllocateMemory(env, IS_NATIVE(access) ? sizeof(NativeMethod) : sizeof(Method));
+
+    assert(&methodTableSlot->nativeMethod == &methodTableSlot->method);
+
     method->clazz = clazz;
     method->name = name;
     method->desc = desc;
-    method->hash = rvmMethodHash(name, desc);
+    method->hash = hash;
     method->access = access;
     method->size = size;
     method->impl = impl;
     method->synchronizedImpl = synchronizedImpl;
     method->attributes = attributes;
 
-    if (clazz->_methods == &METHODS_NOT_LOADED) {
-        clazz->_methods = NULL;
-    }
-
-    method->next = clazz->_methods;
-    clazz->_methods = method;
-
     return method;
 }
 
 ProxyMethod* addProxyMethod(Env* env, Class* clazz, Method* proxiedMethod, jint access, void* impl) {
-    ProxyMethod* method = rvmAllocateMemory(env, sizeof(ProxyMethod));
-    if (!method) return NULL;
+    jint hash = rvmMethodHash(proxiedMethod->name, proxiedMethod->desc);
+
+    MethodTableSlot * methodTableSlot = addSlot(env, clazz, hash);
+    if (!methodTableSlot) return NULL;
+
+    ProxyMethod * method = &methodTableSlot->proxyMethod;
+    // ProxyMethod* method = rvmAllocateMemory(env, sizeof(ProxyMethod));
+
+    assert(&methodTableSlot->proxyMethod == &methodTableSlot->method);
+
     method->method.clazz = clazz;
     method->method.name = proxiedMethod->name;
     method->method.desc = proxiedMethod->desc;
-    method->method.hash = rvmMethodHash(method->method.name, method->method.desc);
+    method->method.hash = hash;
     method->method.access = access | METHOD_TYPE_PROXY;
     method->method.impl = impl;
     method->method.synchronizedImpl = NULL;
     method->proxiedMethod = proxiedMethod;
-
-    if (clazz->_methods == &METHODS_NOT_LOADED) {
-        clazz->_methods = NULL;
-    }
-
-    method->method.next = clazz->_methods;
-    clazz->_methods = (Method*) method;
 
     return method;
 }
 
 BridgeMethod* rvmAddBridgeMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, 
         void* synchronizedImpl, void** targetFnPtr, void* attributes) {
-    
-    BridgeMethod* method = rvmAllocateMemory(env, sizeof(BridgeMethod));
-    if (!method) return NULL;
+    jint hash = rvmMethodHash(name, desc);
+
+    MethodTableSlot * methodTableSlot = addSlot(env, clazz, hash);
+    if (!methodTableSlot) return NULL;
+
+    BridgeMethod * method = &methodTableSlot->bridgeMethod;
+    // BridgeMethod* method = rvmAllocateMemory(env, sizeof(BridgeMethod));
+
+    assert(&methodTableSlot->bridgeMethod == &methodTableSlot->method);
+
     method->method.clazz = clazz;
     method->method.name = name;
     method->method.desc = desc;
-    method->method.hash = rvmMethodHash(method->method.name, method->method.desc);
+    method->method.hash = hash;
     method->method.access = access | METHOD_TYPE_BRIDGE;
     method->method.size = size;
     method->method.impl = impl;
@@ -811,21 +916,22 @@ BridgeMethod* rvmAddBridgeMethod(Env* env, Class* clazz, const char* name, const
     method->method.attributes = attributes;
     method->targetFnPtr = targetFnPtr;
 
-    if (clazz->_methods == &METHODS_NOT_LOADED) {
-        clazz->_methods = NULL;
-    }
-
-    method->method.next = clazz->_methods;
-    clazz->_methods = (Method*) method;
 
     return method;
 }
 
 CallbackMethod* rvmAddCallbackMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, 
         void* synchronizedImpl, void* callbackImpl, void* attributes) {
-    
-    CallbackMethod* method = rvmAllocateMemory(env, sizeof(CallbackMethod));
-    if (!method) return NULL;
+    jint hash = rvmMethodHash(name, desc);
+
+    MethodTableSlot * methodTableSlot = addSlot(env, clazz, hash);
+    if (!methodTableSlot) return NULL;
+
+    CallbackMethod * method = &methodTableSlot->callbackMethod;
+    //CallbackMethod* method = rvmAllocateMemory(env, sizeof(CallbackMethod));
+
+    assert(&methodTableSlot->callbackMethod == &methodTableSlot->method);
+
     method->method.clazz = clazz;
     method->method.name = name;
     method->method.desc = desc;
@@ -836,13 +942,6 @@ CallbackMethod* rvmAddCallbackMethod(Env* env, Class* clazz, const char* name, c
     method->method.synchronizedImpl = synchronizedImpl;
     method->method.attributes = attributes;
     method->callbackImpl = callbackImpl;
-
-    if (clazz->_methods == &METHODS_NOT_LOADED) {
-        clazz->_methods = NULL;
-    }
-
-    method->method.next = clazz->_methods;
-    clazz->_methods = (Method*) method;
 
     return method;
 }
@@ -907,22 +1006,22 @@ Field* rvmGetFields(Env* env, Class* clazz) {
     return clazz->_fields;
 }
 
-Method* rvmGetMethods(Env* env, Class* clazz) {
-    if (clazz->_methods != &METHODS_NOT_LOADED) return clazz->_methods;
+MethodTable* rvmGetMethods(Env* env, Class* clazz) {
+    if (clazz->_methodTable != &METHODS_NOT_LOADED) return clazz->_methodTable;
 
     // TODO: Double checked locking
     obtainClassLock();
-    if (clazz->_methods == &METHODS_NOT_LOADED) {
+    if (clazz->_methodTable == &METHODS_NOT_LOADED) {
         env->vm->options->loadMethods(env, clazz);
-        if (clazz->_methods == &METHODS_NOT_LOADED) {
+        if (clazz->_methodTable == &METHODS_NOT_LOADED) {
             // The class has no methods
-            clazz->_methods = NULL;
+            clazz->_methodTable = &CONSTANT_EMPTY_METHOD_TABLE;
         }
     }
-    if (rvmExceptionCheck(env)) clazz->_methods = &METHODS_NOT_LOADED;
+    if (rvmExceptionCheck(env)) clazz->_methodTable = &METHODS_NOT_LOADED;
     releaseClassLock();
     if (rvmExceptionCheck(env)) return NULL;
-    return clazz->_methods;
+    return clazz->_methodTable;
 }
 
 jboolean rvmRegisterClass(Env* env, Class* clazz) {

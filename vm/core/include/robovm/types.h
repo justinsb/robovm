@@ -34,6 +34,8 @@ typedef struct Field Field;
 typedef struct ClassField ClassField;
 typedef struct InstanceField InstanceField;
 typedef struct Method Method;
+typedef struct MethodTable MethodTable;
+typedef union MethodTableSlot MethodTableSlot;
 typedef struct NativeMethod NativeMethod;
 typedef struct BridgeMethod BridgeMethod;
 typedef struct CallbackMethod CallbackMethod;
@@ -74,7 +76,6 @@ struct InstanceField {
 };
 
 struct Method {
-  Method* next;
   Class* clazz;
   const char* name;
   const char* desc;
@@ -122,6 +123,19 @@ struct Object {
   uint32_t lock;
 };
 
+union MethodTableSlot {
+	Method method;
+	NativeMethod nativeMethod;
+	ProxyMethod proxyMethod;
+	BridgeMethod bridgeMethod;
+	CallbackMethod callbackMethod;
+};
+
+struct MethodTable {
+  jint size;
+  MethodTableSlot slot[0];
+};
+
 /* 
  * Represents a java.lang.Class instance
  */
@@ -139,7 +153,7 @@ struct Class {
   Thread* initThread;      // The Thread which is currently initializing this class.
   Interface* _interfaces;  // Lazily loaded linked list of interfaces. Use rvmGetInterfaces() to get this value.
   Field* _fields;          // Lazily loaded linked list of fields. Use rvmGetFields() to get this value.
-  Method* _methods;        // Lazily loaded linked list of methods. Use rvmGetMethods() to get this value.
+  MethodTable * _methodTable; // Lazily loaded linked list of methods. Use rvmGetMethods() to get this value.
   void* attributes;
   jint classDataSize;
   jint instanceDataOffset; // The offset from the base of Object->data

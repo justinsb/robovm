@@ -380,8 +380,13 @@ static jboolean parseEnumElementValue(Env* env, void** attributes, ClassLoader* 
 }
 
 static Method* getAnnotationValueMethod(Env* env, Class* clazz, char* name) {
-    Method* method = rvmGetMethods(env, clazz);
-    for (; method != NULL; method = method->next) {
+    MethodTable* methods = rvmGetMethods(env, clazz);
+    int i;
+    for (i = 0; i < methods->size; i++) {
+        MethodTableSlot * slot = &methods->slot[i];
+        Method * method = &slot->method;
+        if (method->name == NULL) continue;
+
         if (!strcmp(method->name, name)) {
             return method;
         }

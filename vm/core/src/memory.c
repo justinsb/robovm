@@ -98,7 +98,7 @@ static struct GC_ms_entry* markObject(GC_word* addr, struct GC_ms_entry* mark_st
         mark_stack_ptr = GC_MARK_AND_PUSH(clazz->componentType, mark_stack_ptr, mark_stack_limit, NULL);
         mark_stack_ptr = GC_MARK_AND_PUSH(clazz->_interfaces, mark_stack_ptr, mark_stack_limit, NULL);
         mark_stack_ptr = GC_MARK_AND_PUSH(clazz->_fields, mark_stack_ptr, mark_stack_limit, NULL);
-        mark_stack_ptr = GC_MARK_AND_PUSH(clazz->_methods, mark_stack_ptr, mark_stack_limit, NULL);
+        mark_stack_ptr = GC_MARK_AND_PUSH(clazz->_methodTable, mark_stack_ptr, mark_stack_limit, NULL);
         void** start = (void**) (((char*) clazz) + offsetof(Class, data));
         void** end = (void**) (((char*) start) + clazz->classRefCount * sizeof(Object*));
         mark_stack_ptr = markRegion(start, end, mark_stack_ptr, mark_stack_limit);

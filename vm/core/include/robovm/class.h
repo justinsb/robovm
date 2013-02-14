@@ -128,6 +128,7 @@ extern Class* rvmAllocateClass(Env* env, const char* className, Class* superclas
 extern jboolean rvmAddInterface(Env* env, Class* clazz, Class* interface);
 extern Field* rvmAddField(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint offset, void* attributes);
 extern Method* rvmAddMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, void* synchronizedImpl, void* attributes);
+extern MethodTable * rvmBuildMethodTable(Env * env, jint n);
 extern BridgeMethod* rvmAddBridgeMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, 
         void* synchronizedImpl, void** targetFnPtr, void* attributes);
 extern CallbackMethod* rvmAddCallbackMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, 
@@ -143,7 +144,7 @@ extern ClassLoader* rvmGetSystemClassLoader(Env* env);
 
 extern Interface* rvmGetInterfaces(Env* env, Class* clazz);
 extern Field* rvmGetFields(Env* env, Class* clazz);
-extern Method* rvmGetMethods(Env* env, Class* clazz);
+extern MethodTable* rvmGetMethods(Env* env, Class* clazz);
 
 extern void rvmIterateLoadedClasses(Env* env, jboolean (*f)(Env*, Class*, void*), void* data);
 

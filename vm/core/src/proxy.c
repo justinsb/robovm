@@ -38,11 +38,19 @@ typedef struct {
 } ProxyClassData;
 
 static ProxyMethod* hasMethod(Env* env, Class* clazz, const char* name, const char* desc) {
-    Method* method = clazz->_methods;
     char* paramsEnd = strchr(desc, ')');
     assert(paramsEnd != NULL);
     jint paramsLength = paramsEnd - desc + 1;
-    for (; method != NULL; method = method->next) {
+
+    MethodTable* methods = clazz->_methodTable;
+
+    int i;
+    for (i = 0; i < methods->size; i++) {
+        MethodTableSlot * slot = &methods->slot[i];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (!strcmp(method->name, name) && !strncmp(method->desc, desc, paramsLength)) {
             return (ProxyMethod*) method;
         }
@@ -162,9 +170,16 @@ static jboolean addProxyMethods(Env* env, Class* proxyClass, Class* clazz, Proxy
         if (!addProxyMethods(env, proxyClass, clazz->superclass, proxyClassData)) return FALSE;
     }
 
-    Method* method = rvmGetMethods(env, clazz);
+    MethodTable* methods = rvmGetMethods(env, clazz);
     if (rvmExceptionOccurred(env)) return FALSE;
-    for (; method != NULL; method = method->next) {
+
+    int i;
+    for (i = 0; i < methods->size; i++) {
+        MethodTableSlot * slot = &methods->slot[i];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (!METHOD_IS_STATIC(method) && !METHOD_IS_PRIVATE(method) && !METHOD_IS_FINAL(method)
                 && (!METHOD_IS_CONSTRUCTOR(method) || clazz == proxyClass->superclass)) {
 
@@ -191,9 +206,16 @@ static jboolean addProxyMethods(Env* env, Class* proxyClass, Class* clazz, Proxy
 static jboolean implementAbstractInterfaceMethods(Env* env, Class* proxyClass, Interface* interface, ProxyClassData* proxyClassData) {
     if (!interface) return TRUE;
 
-    Method* method = rvmGetMethods(env, interface->interface);
+    MethodTable* methods = rvmGetMethods(env, interface->interface);
     if (rvmExceptionOccurred(env)) return FALSE;
-    for (; method != NULL; method = method->next) {
+
+    int i;
+    for (i = 0; i < methods->size; i++) {
+        MethodTableSlot * slot = &methods->slot[i];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         if (!METHOD_IS_CLASS_INITIALIZER(method)) {
             jint access = (method->access & (~ACC_ABSTRACT)) | ACC_FINAL;
             tryAddProxyMethod(env, proxyClass, method, access, proxyClassData);
@@ -228,7 +250,7 @@ Class* rvmProxyCreateProxyClass(Env* env, Class* superclass, ClassLoader* classL
     }
 
     // Initialize methods to NULL to prevent rvmGetMethods() from trying to load the methods if called with this proxy class
-    proxyClass->_methods = NULL;
+    proxyClass->_methodTable = rvmBuildMethodTable(env, 64);
 
     if (!addProxyMethods(env, proxyClass, superclass, proxyClassData)) return NULL;
 

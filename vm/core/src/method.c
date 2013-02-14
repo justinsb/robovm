@@ -48,12 +48,35 @@ static inline void releaseThreadStackTraceLock() {
 }
 
 static Method* findMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
-    Method* method = rvmGetMethods(env, clazz);
+    MethodTable* methods = rvmGetMethods(env, clazz);
     if (rvmExceptionCheck(env)) return NULL;
-    for (; method != NULL; method = method->next) {
-        if (method->hash != hash) continue;
-        if (!strcmp(method->name, name) && !strcmp(method->desc, desc)) {
-            return method;
+
+    if (methods->size == 0) {
+        return NULL;
+    }
+
+    int i = hash;
+    if (i < 0) i = -i;
+    i %= methods->size;
+
+    int n = 0;
+    while (n < methods->size) {
+        MethodTableSlot * slot = &methods->slot[i];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) return NULL;
+
+        if (method->hash == hash) {
+            if (!strcmp(method->name, name) && !strcmp(method->desc, desc)) {
+                return method;
+            }
+        }
+
+        i++;
+        n++;
+
+        if (i >= methods->size) {
+            i = 0;
         }
     }
     return NULL;
@@ -168,9 +191,17 @@ Method* rvmGetInstanceMethod(Env* env, Class* clazz, jint hash, const char* name
 Method* rvmFindMethodAtAddress(Env* env, void* address) {
     Class* clazz = env->vm->options->findClassAt(env, address);
     if (!clazz) return NULL;
-    Method* method = rvmGetMethods(env, clazz);
+
+    MethodTable* methods = rvmGetMethods(env, clazz);
     if (rvmExceptionCheck(env)) return NULL;
-    for (; method != NULL; method = method->next) {
+
+    int i;
+    for (i = 0; i < methods->size; i++) {
+        MethodTableSlot * slot = &methods->slot[i];
+        Method * method = &slot->method;
+
+        if (method->name == NULL) continue;
+
         void* start = method->impl;
         void* end = start + method->size;
         if (start && address >= start && address < end) {

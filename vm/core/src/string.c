@@ -150,7 +150,7 @@ static inline Object* newString(Env* env, CharArray* value, jint offset, jint le
 }
 
 jboolean rvmInitStrings(Env* env) {
-    stringConstructor = rvmGetInstanceMethod(env, java_lang_String, "<init>", "(II[C)V");
+    stringConstructor = rvmGetInstanceMethod2(env, java_lang_String, "<init>", "(II[C)V");
     if (!stringConstructor) return FALSE;
     stringValueField = rvmGetInstanceField(env, java_lang_String, "value", "[C");
     if (!stringValueField) return FALSE;

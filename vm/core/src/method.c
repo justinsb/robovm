@@ -59,7 +59,7 @@ static Method* findMethod(Env* env, Class* clazz, jint hash, const char* name, c
     return NULL;
 }
 
-static Method* getMethodWithHash(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
+static Method* getMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
     if (!strcmp("<init>", name) || !strcmp("<clinit>", name)) {
         // Constructors and static initializers are not inherited so we shouldn't check with the superclasses.
         return findMethod(env, clazz, hash, name, desc);
@@ -80,7 +80,7 @@ static Method* getMethodWithHash(Env* env, Class* clazz, jint hash, const char* 
         Interface* interface = rvmGetInterfaces(env, c);
         if (rvmExceptionCheck(env)) return NULL;
         for (; interface != NULL; interface = interface->next) {
-            Method* method = getMethodWithHash(env, interface->interface, hash, name, desc);
+            Method* method = getMethod(env, interface->interface, hash, name, desc);
             if (rvmExceptionCheck(env)) return NULL;
             if (method) return method;
         }
@@ -91,15 +91,10 @@ static Method* getMethodWithHash(Env* env, Class* clazz, jint hash, const char* 
          * Class is an interface so check with java.lang.Object.
          * TODO: Should we really do this? Does the JNI GetMethodID() function do this?
          */
-        return getMethodWithHash(env, java_lang_Object, hash, name, desc);
+        return getMethod(env, java_lang_Object, hash, name, desc);
     }
 
     return NULL;
-}
-
-static Method* getMethod(Env* env, Class* clazz, const char* name, const char* desc) {
-    jint hash = rvmMethodHash(name, desc);
-    return getMethodWithHash(env, clazz, hash, name, desc);
 }
 
 jboolean rvmInitMethods(Env* env) {
@@ -113,7 +108,7 @@ jboolean rvmInitMethods(Env* env) {
     if (!java_lang_StackTraceElement) {
         return FALSE;
     }
-    java_lang_StackTraceElement_constructor = rvmGetInstanceMethod(env, java_lang_StackTraceElement, "<init>", 
+    java_lang_StackTraceElement_constructor = rvmGetInstanceMethod2(env, java_lang_StackTraceElement, "<init>",
                                       "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;I)V");
     if (!java_lang_StackTraceElement_constructor) {
         return FALSE;
@@ -127,13 +122,14 @@ jboolean rvmInitMethods(Env* env) {
 }
 
 jboolean rvmHasMethod(Env* env, Class* clazz, const char* name, const char* desc) {
-    Method* method = getMethod(env, clazz, name, desc);
+    jint hash = rvmMethodHash(name, desc);
+    Method* method = getMethod(env, clazz, hash, name, desc);
     if (rvmExceptionCheck(env)) return FALSE;
     return method ? TRUE : FALSE;
 }
 
-Method* rvmGetMethod(Env* env, Class* clazz, const char* name, const char* desc) {
-    Method* method = getMethod(env, clazz, name, desc);
+Method* rvmGetMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
+    Method* method = getMethod(env, clazz, hash, name, desc);
     if (rvmExceptionCheck(env)) return NULL;
     if (!method) {
         rvmThrowNoSuchMethodError(env, name);
@@ -143,7 +139,8 @@ Method* rvmGetMethod(Env* env, Class* clazz, const char* name, const char* desc)
 }
 
 Method* rvmGetClassMethod(Env* env, Class* clazz, const char* name, const char* desc) {
-    Method* method = rvmGetMethod(env, clazz, name, desc);
+    jint hash = rvmMethodHash(name, desc);
+    Method* method = rvmGetMethod(env, clazz, hash, name, desc);
     if (!method) return NULL;
     if (!METHOD_IS_STATIC(method)) {
         // TODO: JNI spec doesn't say anything about throwing this
@@ -154,11 +151,11 @@ Method* rvmGetClassMethod(Env* env, Class* clazz, const char* name, const char* 
 }
 
 Method* rvmGetClassInitializer(Env* env, Class* clazz) {
-    return getMethod(env, clazz, "<clinit>", "()V");
+    return getMethod2(env, clazz, "<clinit>", "()V");
 }
 
-Method* rvmGetInstanceMethod(Env* env, Class* clazz, const char* name, const char* desc) {
-    Method* method = rvmGetMethod(env, clazz, name, desc);
+Method* rvmGetInstanceMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc) {
+    Method* method = rvmGetMethod(env, clazz, hash, name, desc);
     if (!method) return NULL;
     if (METHOD_IS_STATIC(method)) {
         // TODO: JNI spec doesn't say anything about throwing this
@@ -400,7 +397,7 @@ static inline jboolean isFpType(char type) {
 CallInfo* initCallInfo(Env* env, Object* obj, Method* method, jboolean virtual, jvalue* args) {
     if (virtual && !(method->access & ACC_PRIVATE)) {
         // Lookup the real method to be invoked
-        method = rvmGetMethod(env, obj->clazz, method->name, method->desc);
+        method = rvmGetMethod(env, obj->clazz, method->hash, method->name, method->desc);
         if (!method) return NULL;
     }
 

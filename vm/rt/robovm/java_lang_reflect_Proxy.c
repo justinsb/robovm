@@ -31,7 +31,7 @@ static void handler(Env* env, Object* receiver, ProxyMethod* method, jvalue* arg
         if (!java_lang_reflect_InvocationHandler) return;
     }
     if (!java_lang_reflect_InvocationHandler_invoke) {
-        java_lang_reflect_InvocationHandler_invoke = rvmGetInstanceMethod(env, java_lang_reflect_InvocationHandler, 
+        java_lang_reflect_InvocationHandler_invoke = rvmGetInstanceMethod2(env, java_lang_reflect_InvocationHandler,
                 "invoke", "(Ljava/lang/Object;Ljava/lang/reflect/Method;[Ljava/lang/Object;)Ljava/lang/Object;");
         if (!java_lang_reflect_InvocationHandler_invoke) return;
     }
@@ -101,7 +101,7 @@ static void handler(Env* env, Object* receiver, ProxyMethod* method, jvalue* arg
             if (!java_lang_reflect_UndeclaredThrowableException) return;
         }
         if (!java_lang_reflect_UndeclaredThrowableException_init) {
-            java_lang_reflect_UndeclaredThrowableException_init = rvmGetInstanceMethod(env,
+            java_lang_reflect_UndeclaredThrowableException_init = rvmGetInstanceMethod2(env,
                 java_lang_reflect_UndeclaredThrowableException, 
                 "<init>", "(Ljava/lang/Throwable;)V");
             if (!java_lang_reflect_UndeclaredThrowableException_init) return;

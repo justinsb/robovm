@@ -70,7 +70,7 @@ Object* createMethodObject(Env* env, Method* method) {
         if (!java_lang_reflect_Method) return NULL;
     }
     if (!java_lang_reflect_Method_init) {
-        java_lang_reflect_Method_init = rvmGetInstanceMethod(env, java_lang_reflect_Method, "<init>", "(J)V");
+        java_lang_reflect_Method_init = rvmGetInstanceMethod2(env, java_lang_reflect_Method, "<init>", "(J)V");
         if (!java_lang_reflect_Method_init) return NULL;
     }
     jvalue initArgs[1];
@@ -84,7 +84,7 @@ Object* createFieldObject(Env* env, Field* field) {
         if (!java_lang_reflect_Field) return NULL;
     }
     if (!java_lang_reflect_Field_init) {
-        java_lang_reflect_Field_init = rvmGetInstanceMethod(env, java_lang_reflect_Field, "<init>", "(J)V");
+        java_lang_reflect_Field_init = rvmGetInstanceMethod2(env, java_lang_reflect_Field, "<init>", "(J)V");
         if (!java_lang_reflect_Field_init) return NULL;
     }
     jvalue initArgs[1];
@@ -98,7 +98,7 @@ Object* createConstructorObject(Env* env, Method* method) {
         if (!java_lang_reflect_Constructor) return NULL;
     }
     if (!java_lang_reflect_Constructor_init) {
-        java_lang_reflect_Constructor_init = rvmGetInstanceMethod(env, java_lang_reflect_Constructor, "<init>", "(J)V");
+        java_lang_reflect_Constructor_init = rvmGetInstanceMethod2(env, java_lang_reflect_Constructor, "<init>", "(J)V");
         if (!java_lang_reflect_Constructor_init) return NULL;
     }
     jvalue initArgs[1];
@@ -137,7 +137,7 @@ void throwInvocationTargetException(Env* env, Object* throwable) {
         if (!java_lang_reflect_InvocationTargetException) return;
     }
     if (!java_lang_reflect_InvocationTargetException_init) {
-        java_lang_reflect_InvocationTargetException_init = rvmGetMethod(env, java_lang_reflect_InvocationTargetException, "<init>", "(Ljava/lang/Throwable;)V");
+        java_lang_reflect_InvocationTargetException_init = rvmGetMethod2(env, java_lang_reflect_InvocationTargetException, "<init>", "(Ljava/lang/Throwable;)V");
         if (!java_lang_reflect_InvocationTargetException_init) return;
     }
     jvalue initArgs[1];

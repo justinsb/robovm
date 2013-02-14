@@ -117,7 +117,8 @@ static jint RegisterNatives(JNIEnv* env, jclass clazz, const JNINativeMethod* me
     NativeMethod* nativeMethods[nMethods];
     jint i;
     for (i = 0; i < nMethods; i++) {
-        nativeMethods[i] = (NativeMethod*) rvmGetMethod((Env*) env, (Class*) clazz, methods[i].name, methods[i].signature);
+        jint hash = rvmMethodHash(methods[i].name, methods[i].signature);
+        nativeMethods[i] = (NativeMethod*) rvmGetMethod((Env*) env, (Class*) clazz, hash, methods[i].name, methods[i].signature);
         if (nativeMethods[i] == NULL || !METHOD_IS_NATIVE(&nativeMethods[i]->method)) {
             rvmThrowNoSuchMethodError((Env*) env, methods[i].name);
             return JNI_ERR;
@@ -235,7 +236,7 @@ static jboolean IsInstanceOf(JNIEnv* env, jobject obj, jclass clazz) {
 }
 
 static jmethodID GetMethodID(JNIEnv* env, jclass clazz, const char* name, const char* sig) {
-    return (jmethodID) rvmGetInstanceMethod((Env*) env, (Class*) clazz, (char*) name, (char*) sig);
+    return (jmethodID) rvmGetInstanceMethod2((Env*) env, (Class*) clazz, (char*) name, (char*) sig);
 }
 
 static jobject CallObjectMethodV(JNIEnv* env, jobject obj, jmethodID methodID, va_list args) {

@@ -39,8 +39,8 @@ declare i32 @_bcInstanceof(%Env*, i8**, %Object*)
 declare i32 @_bcInstanceofArray(%Env*, %Object*, %Object*)
 declare void @_bcRegisterFinalizer(%Env* %env, %Object* %o)
 
-declare i8* @_bcLookupVirtualMethod(%Env*, %Object*, i8*, i8*)
-declare i8* @_bcLookupInterfaceMethod(%Env*, i8**, %Object*, i8*, i8*)
+declare i8* @_bcLookupVirtualMethod(%Env*, %Object*, i32, i8*, i8*)
+declare i8* @_bcLookupInterfaceMethod(%Env*, i8**, %Object*, i32, i8*, i8*)
 declare void @_bcThrow(%Env*, %Object*) noreturn
 declare void @_bcThrowIfExceptionOccurred(%Env*)
 declare %Object* @_bcExceptionClear(%Env*)

@@ -155,7 +155,7 @@ static jint attachThread(VM* vm, Env** envPtr, char* name, Object* group, jboole
         if (!threadName) goto error_remove;
     }
 
-    Method* threadConstructor = rvmGetInstanceMethod(env, java_lang_Thread, "<init>", "(JLjava/lang/String;Ljava/lang/ThreadGroup;Z)V");
+    Method* threadConstructor = rvmGetInstanceMethod2(env, java_lang_Thread, "<init>", "(JLjava/lang/String;Ljava/lang/ThreadGroup;Z)V");
     if (!threadConstructor) goto error_remove;
 
     rvmCallNonvirtualVoidInstanceMethod(env, (Object*) threadObj, threadConstructor, PTR_TO_LONG(thread), threadName, group, daemon);
@@ -243,13 +243,13 @@ jboolean rvmInitThreads(Env* env) {
     if (pthread_key_create(&tlsEnvKey, NULL) != 0) return FALSE;
     if (pthread_cond_init(&threadStartCond, NULL) != 0) return FALSE;
     if (pthread_cond_init(&threadsChangedCond, NULL) != 0) return FALSE;
-    getUncaughtExceptionHandlerMethod = rvmGetInstanceMethod(env, java_lang_Thread, "getUncaughtExceptionHandler", "()Ljava/lang/Thread$UncaughtExceptionHandler;");
+    getUncaughtExceptionHandlerMethod = rvmGetInstanceMethod2(env, java_lang_Thread, "getUncaughtExceptionHandler", "()Ljava/lang/Thread$UncaughtExceptionHandler;");
     if (!getUncaughtExceptionHandlerMethod) return FALSE;
     Class* uncaughtExceptionHandler = rvmFindClassInClasspathForLoader(env, "java/lang/Thread$UncaughtExceptionHandler", NULL);
     if (!uncaughtExceptionHandler) return FALSE;
-    uncaughtExceptionMethod = rvmGetInstanceMethod(env, uncaughtExceptionHandler, "uncaughtException", "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
+    uncaughtExceptionMethod = rvmGetInstanceMethod2(env, uncaughtExceptionHandler, "uncaughtException", "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
     if (!uncaughtExceptionMethod) return FALSE;
-    removeThreadMethod = rvmGetInstanceMethod(env, java_lang_ThreadGroup, "removeThread", "(Ljava/lang/Thread;)V");
+    removeThreadMethod = rvmGetInstanceMethod2(env, java_lang_ThreadGroup, "removeThread", "(Ljava/lang/Thread;)V");
     if (!removeThreadMethod) return FALSE;
     return attachThread(env->vm, &env, "main", NULL, FALSE) == JNI_OK;
 }
@@ -312,7 +312,7 @@ static void* startThreadEntryPoint(void* _args) {
 
         rvmChangeThreadPriority(env, thread, thread->threadObj->priority);
 
-        Method* run = rvmGetInstanceMethod(env, java_lang_Thread, "run", "()V");
+        Method* run = rvmGetInstanceMethod2(env, java_lang_Thread, "run", "()V");
         if (run) {
             jvalue emptyArgs[0];
             rvmCallVoidInstanceMethodA(env, (Object*) threadObj, run, emptyArgs);

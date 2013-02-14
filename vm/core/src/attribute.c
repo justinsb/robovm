@@ -548,13 +548,13 @@ static jboolean getEnclosingClassIterator(Env* env, char* className, char* metho
     return FALSE; // Stop iterating
 }
 
-static jboolean getEnclosingMethodIterator(Env* env, char* className, char* methodName, char* methodDesc, void* data) {
+static jboolean getEnclosingMethodIterator(Env* env, char* className, jint hash, char* methodName, char* methodDesc, void* data) {
     Method** result = (Method**) ((void**) data)[0];
     Class* clazz = (Class*) ((void**) data)[1];
     if (methodName && methodDesc) {
         Class* c = rvmFindClassUsingLoader(env, className, clazz->classLoader);
         if (c) {
-            *result = rvmGetMethod(env, c, methodName, methodDesc);
+            *result = rvmGetMethod(env, c, hash, methodName, methodDesc);
         }
         return FALSE; // Stop iterating
     }
@@ -725,11 +725,11 @@ jboolean rvmInitAttributes(Env* env) {
     if (!java_lang_annotation_AnnotationFormatError) return FALSE;
     java_lang_reflect_Method = rvmFindClassUsingLoader(env, "java/lang/reflect/Method", NULL);
     if (!java_lang_reflect_Method) return FALSE;
-    java_lang_reflect_Method_init = rvmGetInstanceMethod(env, java_lang_reflect_Method, "<init>", "(J)V");
+    java_lang_reflect_Method_init = rvmGetInstanceMethod2(env, java_lang_reflect_Method, "<init>", "(J)V");
     if (!java_lang_reflect_Method_init) return FALSE;
     org_apache_harmony_lang_annotation_AnnotationMember = rvmFindClassUsingLoader(env, "org/apache/harmony/lang/annotation/AnnotationMember", NULL);
     if (!org_apache_harmony_lang_annotation_AnnotationMember) return FALSE;
-    org_apache_harmony_lang_annotation_AnnotationMember_init = rvmGetInstanceMethod(env, org_apache_harmony_lang_annotation_AnnotationMember, 
+    org_apache_harmony_lang_annotation_AnnotationMember_init = rvmGetInstanceMethod2(env, org_apache_harmony_lang_annotation_AnnotationMember,
         "<init>", "(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Class;Ljava/lang/reflect/Method;)V");
     if (!org_apache_harmony_lang_annotation_AnnotationMember_init) return FALSE;
 

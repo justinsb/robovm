@@ -550,7 +550,23 @@ public class ClassCompiler {
             }
         }
     }
-    
+
+    private int hashMethodName(String name, String desc) {
+        int hash = 0x811C9DC5;
+        byte[] b = name.getBytes();
+        for (int i = 0; i < b.length; i++) {
+            hash ^= (b[i] & 0xff);
+            hash *= 16777619;
+        }
+        hash *= 16777619;
+        b = desc.getBytes();
+        for (int i = 0; i < b.length; i++) {
+            hash ^= (b[i] & 0xff);
+            hash *= 16777619;
+        }
+        return hash;
+    }
+ 
     private void createLookupFunction(SootMethod m) {
         // TODO: This should use a virtual method table or interface method table.
         Function function = FunctionBuilder.lookup(m);
@@ -572,6 +588,7 @@ public class ClassCompiler {
             args.add(info);
         }
         args.add(function.getParameterRef(1));
+        args.add(new IntegerConstant(hashMethodName(m.getName(), getDescriptor(m))));
         args.add(getString(m.getName()));
         args.add(getString(getDescriptor(m)));
         Value fptr = call(function, lookupFn, args);

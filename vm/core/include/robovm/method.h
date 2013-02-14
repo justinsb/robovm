@@ -40,11 +40,11 @@ extern jboolean rvmInitMethods(Env* env);
 extern const char* rvmGetReturnType(const char* desc);
 extern const char* rvmGetNextParameterType(const char** desc);
 extern jint rvmGetParameterCount(Method* method);
-extern Method* rvmGetMethod(Env* env, Class* clazz, const char* name, const char* desc);
+extern Method* rvmGetMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc);
 extern jboolean rvmHasMethod(Env* env, Class* clazz, const char* name, const char* desc);
 extern Method* rvmGetClassMethod(Env* env, Class* clazz, const char* name, const char* desc);
 extern Method* rvmGetClassInitializer(Env* env, Class* clazz);
-extern Method* rvmGetInstanceMethod(Env* env, Class* clazz, const char* name, const char* desc);
+extern Method* rvmGetInstanceMethod(Env* env, Class* clazz, jint hash, const char* name, const char* desc);
 extern jboolean rvmRegisterNative(Env* env, NativeMethod* method, void* impl);
 extern jboolean rvmUnregisterNative(Env* env, NativeMethod* method);
 extern void* rvmResolveNativeMethodImpl(Env* env, NativeMethod* method, const char* shortMangledName, const char* longMangledName, ClassLoader* classLoader, void** ptr);
@@ -156,6 +156,40 @@ static inline Method* rvmGetNextCallStackMethod(Env* env, CallStack* callStack, 
         }
     }
     return NULL;
+}
+
+static inline jint rvmMethodHash(const char * name, const char * desc) {
+    uint32_t h = 0x811C9DC5;
+    while (*name) {
+        h ^= *name;
+        h *= 16777619;
+        name++;
+    }
+
+    h *= 16777619;
+
+    while (*desc) {
+        h ^= *desc;
+        h *= 16777619;
+        desc++;
+    }
+
+    return (jint) h;
+    //jint h = 0x1ce79e5c;
+    //MurmurHash3_x86_32(name, strlen(name) + 1, h, &h);
+    //MurmurHash3_x86_32(desc, strlen(desc) + 1, h, &h);
+    //return h;
+}
+
+
+static inline Method* rvmGetMethod2(Env* env, Class* clazz, const char* name, const char* desc) {
+    jint hash = rvmMethodHash(name, desc);
+    return rvmGetMethod(env, clazz, hash, name, desc);
+}
+
+static inline Method* rvmGetInstanceMethod2(Env* env, Class* clazz, const char* name, const char* desc) {
+    jint hash = rvmMethodHash(name, desc);
+    return rvmGetInstanceMethod(env, clazz, hash, name, desc);
 }
 
 #endif

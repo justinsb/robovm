@@ -491,7 +491,7 @@ jboolean rvmInitMemory(Env* env) {
     if (!java_lang_ref_ReferenceQueue_add) return FALSE;
     java_nio_ReadWriteDirectByteBuffer = rvmFindClassUsingLoader(env, "java/nio/ReadWriteDirectByteBuffer", NULL);
     if (!java_nio_ReadWriteDirectByteBuffer) return FALSE;
-    java_nio_ReadWriteDirectByteBuffer_init = rvmGetInstanceMethod(env, java_nio_ReadWriteDirectByteBuffer, "<init>", "(II)V");
+    java_nio_ReadWriteDirectByteBuffer_init = rvmGetInstanceMethod2(env, java_nio_ReadWriteDirectByteBuffer, "<init>", "(II)V");
     if (!java_nio_ReadWriteDirectByteBuffer_init) return FALSE;
     Class* java_nio_Buffer = rvmFindClassUsingLoader(env, "java/nio/Buffer", NULL);
     if (!java_nio_Buffer) return FALSE;

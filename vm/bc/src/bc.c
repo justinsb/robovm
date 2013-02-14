@@ -175,7 +175,7 @@ static void wrapClassNotFoundException(Env* env, const char* className) {
     if (exception && exception->clazz == java_lang_ClassNotFoundException) {
         // If ClassNotFoundException is thrown we have to wrap it in a NoClassDefFoundError
         exception = rvmExceptionClear(env);
-        Method* constructor = rvmGetInstanceMethod(env, java_lang_NoClassDefFoundError, "<init>", "(Ljava/lang/String;)V");
+        Method* constructor = rvmGetInstanceMethod2(env, java_lang_NoClassDefFoundError, "<init>", "(Ljava/lang/String;)V");
         if (!constructor) return;
         Object* message = rvmNewStringUTF(env, className, -1);
         if (!message) return;
@@ -185,11 +185,11 @@ static void wrapClassNotFoundException(Env* env, const char* className) {
         if (!java_lang_StackTraceElement) return;
         ObjectArray* stackTrace = rvmNewObjectArray(env, 0, java_lang_StackTraceElement, NULL, NULL);
         if (!stackTrace) return;
-        Method* setStackTrace = rvmGetInstanceMethod(env, java_lang_Throwable, "setStackTrace", "([Ljava/lang/StackTraceElement;)V");
+        Method* setStackTrace = rvmGetInstanceMethod2(env, java_lang_Throwable, "setStackTrace", "([Ljava/lang/StackTraceElement;)V");
         if (!setStackTrace) return;
         rvmCallVoidInstanceMethod(env, wrappedException, setStackTrace, stackTrace);
         if (rvmExceptionCheck(env)) return;
-        Method* initCause = rvmGetInstanceMethod(env, java_lang_NoClassDefFoundError, "initCause", "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+        Method* initCause = rvmGetInstanceMethod2(env, java_lang_NoClassDefFoundError, "initCause", "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
         if (!initCause) return;
         rvmCallObjectInstanceMethod(env, wrappedException, initCause, exception);
         if (!rvmExceptionCheck(env)) rvmThrow(env, wrappedException);
@@ -428,8 +428,8 @@ void _bcInitializeClass(Env* env, ClassInfoHeader* header) {
     LEAVEV;
 }
 
-static void* lookupVirtualMethod(Env* env, Object* thiz, char* name, char* desc) {
-    Method* method = rvmGetMethod(env, thiz->clazz, name, desc);
+static void* lookupVirtualMethod(Env* env, Object* thiz, jint hash, char* name, char* desc) {
+    Method* method = rvmGetMethod(env, thiz->clazz, hash, name, desc);
     if (!method) return NULL;
     if (METHOD_IS_ABSTRACT(method)) {
         rvmThrowAbstractMethodError(env, ""); // TODO: Message
@@ -437,13 +437,13 @@ static void* lookupVirtualMethod(Env* env, Object* thiz, char* name, char* desc)
     }
     return method->synchronizedImpl ? method->synchronizedImpl : method->impl;
 }
-void* _bcLookupVirtualMethod(Env* env, Object* thiz, char* name, char* desc) {
+void* _bcLookupVirtualMethod(Env* env, Object* thiz, jint hash, char* name, char* desc) {
     ENTER;
-    void* result = lookupVirtualMethod(env, thiz, name, desc);
+    void* result = lookupVirtualMethod(env, thiz, hash, name, desc);
     LEAVE(result);
 }
 
-void* lookupInterfaceMethod(Env* env, ClassInfoHeader* header, Object* thiz, char* name, char* desc) {
+void* lookupInterfaceMethod(Env* env, ClassInfoHeader* header, Object* thiz, jint hash, char* name, char* desc) {
     initializeClass(env, header);
     if (rvmExceptionCheck(env)) return NULL;
     Class* ownerInterface = header->clazz;
@@ -454,7 +454,7 @@ void* lookupInterfaceMethod(Env* env, ClassInfoHeader* header, Object* thiz, cha
         rvmThrowIncompatibleClassChangeError(env, message);
         return NULL;
     }
-    Method* method = rvmGetInstanceMethod(env, thiz->clazz, name, desc);
+    Method* method = rvmGetInstanceMethod(env, thiz->clazz, hash, name, desc);
     Object* throwable = rvmExceptionClear(env);
     if (!method && throwable->clazz != java_lang_NoSuchMethodError) { 
         rvmThrow(env, throwable);
@@ -470,9 +470,9 @@ void* lookupInterfaceMethod(Env* env, ClassInfoHeader* header, Object* thiz, cha
     }
     return method->synchronizedImpl ? method->synchronizedImpl : method->impl;
 }
-void* _bcLookupInterfaceMethod(Env* env, ClassInfoHeader* header, Object* thiz, char* name, char* desc) {
+void* _bcLookupInterfaceMethod(Env* env, ClassInfoHeader* header, Object* thiz, jint hash, char* name, char* desc) {
     ENTER;
-    void* result = lookupInterfaceMethod(env, header, thiz, name, desc);
+    void* result = lookupInterfaceMethod(env, header, thiz, hash, name, desc);
     LEAVE(result);
 }
 
@@ -760,7 +760,8 @@ void* _bcResolveNative(Env* env, Class* clazz, char* name, char* desc, char* sho
     ENTER;
     TRACEF("_bcResolveNative: owner=%s, name=%s, desc=%s, shortMangledName=%s, longMangledName=%s", 
         clazz->name, name, desc, shortMangledName, longMangledName);
-    NativeMethod* method = (NativeMethod*) rvmGetMethod(env, clazz, name, desc);
+    jint hash = rvmMethodHash(name, desc);
+    NativeMethod* method = (NativeMethod*) rvmGetMethod(env, clazz, hash, name, desc);
     void* impl = NULL;
     if (method) {
         impl = rvmResolveNativeMethodImpl(env, method, shortMangledName, longMangledName, clazz->classLoader, ptr);

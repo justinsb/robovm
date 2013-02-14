@@ -27,7 +27,7 @@ static Method* printStackTraceMethod = NULL;
 jboolean rvmInitExceptions(Env* env) {
     stackStateField = rvmGetInstanceField(env, java_lang_Throwable, "stackState", "J");
     if (!stackStateField) return FALSE;
-    printStackTraceMethod = rvmGetInstanceMethod(env, java_lang_Thread, "printStackTrace", "(Ljava/lang/Throwable;)V");
+    printStackTraceMethod = rvmGetInstanceMethod2(env, java_lang_Thread, "printStackTrace", "(Ljava/lang/Throwable;)V");
     if (!printStackTraceMethod) return FALSE;
     return TRUE;
 }
@@ -98,7 +98,7 @@ void rvmThrow(Env* env, Object* e) {
 }
 
 jboolean rvmThrowNew(Env* env, Class* clazz, const char* message) {
-    Method* constructor = rvmGetInstanceMethod(env, clazz, "<init>", "(Ljava/lang/String;)V");
+    Method* constructor = rvmGetInstanceMethod2(env, clazz, "<init>", "(Ljava/lang/String;)V");
     if (!constructor) return FALSE;
     Object* string = NULL;
     // TODO: Check that clazz != NULL?

@@ -669,7 +669,7 @@ Class* rvmFindClassUsingLoader(Env* env, const char* className, ClassLoader* cla
     if (!binaryClassName) return NULL;
     Object* binaryClassNameString = rvmNewInternedStringUTF(env, binaryClassName, -1);
     if (!binaryClassNameString) return NULL;
-    Method* loadClassMethod = rvmGetInstanceMethod(env, java_lang_ClassLoader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+    Method* loadClassMethod = rvmGetInstanceMethod2(env, java_lang_ClassLoader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
     if (!loadClassMethod) return NULL;
     Object* clazz = rvmCallObjectInstanceMethod(env, (Object*) classLoader, loadClassMethod, binaryClassNameString);
     if (rvmExceptionOccurred(env)) return NULL;
@@ -748,29 +748,6 @@ jboolean rvmAddInterface(Env* env, Class* clazz, Class* interf) {
     }
     LL_APPEND(clazz->_interfaces, interface);
     return TRUE;
-}
-
-jint rvmMethodHash(const char * name, const char * desc) {
-    jint h = 2166136261;
-    while (*name) {
-        h ^= *name;
-        h *= 16777619;
-        name++;
-    }
-
-    h *= 16777619;
-
-    while (*desc) {
-        h ^= *desc;
-        h *= 16777619;
-        desc++;
-    }
-
-    return h;
-    //jint h = 0x1ce79e5c;
-    //MurmurHash3_x86_32(name, strlen(name) + 1, h, &h);
-    //MurmurHash3_x86_32(desc, strlen(desc) + 1, h, &h);
-    //return h;
 }
 
 Method* rvmAddMethod(Env* env, Class* clazz, const char* name, const char* desc, jint access, jint size, void* impl, void* synchronizedImpl, void* attributes) {
@@ -1062,7 +1039,7 @@ void rvmInitialize(Env* env, Class* clazz) {
     if (!rvmIsInstanceOf(env, exception, java_lang_Error)) {
         // If exception isn't an instance of java.lang.Error 
         // we must wrap it in a java.lang.ExceptionInInitializerError
-        Method* constructor = rvmGetInstanceMethod(env, java_lang_ExceptionInInitializerError, "<init>", "(Ljava/lang/Throwable;)V");
+        Method* constructor = rvmGetInstanceMethod2(env, java_lang_ExceptionInInitializerError, "<init>", "(Ljava/lang/Throwable;)V");
         if (constructor) {
             Object* wrappedException = rvmNewObject(env, java_lang_ExceptionInInitializerError, constructor, exception);
             if (wrappedException) {
